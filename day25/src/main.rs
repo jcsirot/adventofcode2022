@@ -1,6 +1,7 @@
 use radix_fmt::radix_5;
 use std::env;
 use std::fs;
+use std::ops::Add;
 
 fn main() {
     let mut args = env::args();
@@ -40,40 +41,32 @@ fn from_snafu(input: &str) -> i64 {
 }
 
 fn to_snafu(v: i64) -> String {
-    let mut buffer = Vec::new();
-    let mut carry = false;
-    for c in radix_5(v).to_string().chars().rev() {
-        let c = match c {
-            '0' if carry => {
-                carry = false;
-                "1"
+    match radix_5(v)
+        .to_string()
+        .chars()
+        .rev()
+        .fold((String::new(), false), |acc, c| {
+            let (s, carry) = acc;
+            match c {
+                '0' if carry => (s + "1", false),
+                '0' => (s + "0", false),
+                '1' if carry => (s + "2", false),
+                '1' => (s + "1", false),
+                '2' if carry => (s + "=", true),
+                '2' => (s + "2", false),
+                '3' if carry => (s + "-", true),
+                '3' => (s + "=", true),
+                '4' if carry => (s + "0", true),
+                '4' => (s + "-", true),
+                _ => panic!("Invalid character"),
             }
-            '0' => "0",
-            '1' if carry => {
-                carry = false;
-                "2"
-            }
-            '1' => "1",
-            '2' if carry => "=",
-            '2' => "2",
-            '3' if carry => "-",
-            '3' => {
-                carry = true;
-                "="
-            }
-            '4' if carry => "0",
-            '4' => {
-                carry = true;
-                "-"
-            }
-            _ => panic!("Invalid character"),
-        };
-        buffer.insert(0, c);
+        }) {
+        (s, true) => s + "1",
+        (s, false) => s,
     }
-    if carry {
-        buffer.insert(0, "1");
-    }
-    String::from(&buffer.join(""))
+    .chars()
+    .rev()
+    .collect()
 }
 
 fn solve_part_1(input: &str) -> String {
